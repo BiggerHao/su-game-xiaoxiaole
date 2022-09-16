@@ -1,0 +1,323 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+  min-width: 100%;
+  color: #555;
+  text-align: justify;
+  font-size: 13px;
+
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter,
+.fade-leave-active {
+  opacity: 0;
+}
+
+.text-shadow-w {
+  text-shadow: 2px 2px 2px rgb(250 250 250 / 30%);
+}
+
+.text-justify {
+  text-align: justify;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+.hover-bold:hover {
+  font-weight: bold;
+}
+
+.w100 {
+  width: 100%;
+}
+
+.h100 {
+  height: 100%
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex {
+  display: flex;
+}
+
+.grow {
+  flex-grow: 1;
+}
+
+.warp {
+  flex-wrap: wrap;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
+}
+
+.text-warn {
+  color: var(--el-color-warning);
+}
+
+.text-danger {
+  color: var(--el-color-danger);
+}
+
+.text-success {
+  color: var(--el-color-success);
+}
+
+.text-info {
+  color: var(--el-color-info);
+}
+
+.text-primary {
+  color: var(--el-color-primary);
+}
+
+.scroll-bar {
+  overflow: auto !important;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.1);
+  }
+}
+
+@keyframes bounce-down {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-9px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.shadow {
+  box-shadow: 3px 3px 5px rgb(110 110 110 / 10%), 3px 3px 5px rgb(255 255 255 / 30%);
+  padding: 30px;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: 5px 5px 10px rgb(110 110 110 / 10%);
+  }
+}
+
+/*基于断点的显示类*/
+.show-xs-only,
+.show-lg-only,
+.show-md-only,
+.show-xl-only {
+  display: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  .show-xs-only {
+    display: initial !important;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  .show-md-only {
+    display: initial !important;
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .show-lg-only {
+    display: initial !important;
+  }
+}
+
+@media screen and (min-width: 1920px) {
+  .show-xl-only {
+    display: initial !important;
+  }
+}
+
+.svg-icon-container-hover,
+.svg-warpper {
+  svg {
+    margin-right: 5px
+  }
+
+  :hover {
+
+    path,
+    rect,
+    circle {
+      stroke: var(--el-color-primary);
+    }
+  }
+}
+
+.title-with-line {
+  padding-left: 14px;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4px;
+    border-radius: 4px;
+    height: 100%;
+    background-color: var(--el-color-primary);
+  }
+}
+
+.sys-dialog.el-dialog {
+  border-radius: 8px;
+
+  &.is-fullscreen {
+    border-radius: 0;
+  }
+
+  .el-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .el-dialog__title {
+      padding-left: 14px;
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 4px;
+        border-radius: 4px;
+        height: 100%;
+        background-color: var(--el-color-primary);
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 10px;
+  }
+}
+
+.sys-dialog {
+
+  &-alert {
+    padding-bottom: 10px;
+  }
+
+  &-body {
+    padding: 10px;
+    height: calc(100vh - 300px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  &-actions {
+    padding: 10px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    border-top: 1px solid rgba(0, 0, 0, .08);
+  }
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+
+.dot {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    transform: translateY(calc(50% + 4px));
+  }
+
+  span {
+    padding-left: 10px;
+    font-size: 12px;
+  }
+}
