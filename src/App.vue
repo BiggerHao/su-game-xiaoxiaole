@@ -1,48 +1,153 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { randomInt } from './utils/index.ts';
+import { ref, onMounted } from 'vue';
+import { randomInt } from './utils/index.js';
 
 const stageRef = ref(null);
 
-class square{
+class square {
   private _id: number;
   top: number;
   left: number;
   zIndex: number;
+  covered: boolean = false;
 
-  constructor(id: number, zIndex:number) {
+  constructor(id: number, zIndex: number, top: number, left: number) {
     this.zIndex = zIndex;
     this._id = id;
+    this.top = top;
+    this.left = left;
   }
 
   get id() {
     return this._id;
   }
 }
+
+interface Size {
+  w: number,
+  h: number
+}
+interface Position {
+  top: number,
+  left: number
+}
+
+const stageSize: Size = {
+  w: -1,
+  h: -1
+}
+
+const squareList = ref<Array<InstanceType<typeof square>>>([]);
+const squareBorder = ref<number>(1);
+const level = ref<number>(2);
+const nextLevel = () => {
+  if (level.value <= 8) {
+    level.value += 1;
+    init();
+  }
+}
+const init = (stage: Element = stageRef.value as unknown as Element) => {
+  stageSize.w = stage.clientWidth;
+  stageSize.h = stage.clientHeight;
+  squareBorder.value = Math.min(Math.floor(stageSize.w / (level.value + 2.5)), Math.floor(stageSize.h / (level.value + 2.5)));
+  const genRandomParticalPos: (linesCount: number, itemLength: number, startOffsetLine?: number,) => number = (linesCount, itemLength, startOffsetLine = 1) => {
+    return (randomInt(0, Math.ceil(linesCount - startOffsetLine)) + startOffsetLine) * (itemLength + 2); // +2 (px) border
+  }
+
+  let id = 0;
+  for (let z = level.value + 1; z > 1; z--) {
+    const occupiedPos: Position[] = [];
+    const sum = Math.min(Math.max((((z - 1) * (z - 1))) * 2, 6), Math.min(z, level.value) ** 2);
+    console.log(sum);
+    for (let i = 0; i < sum; i++) {
+      let top: number;
+      let left: number;
+      let occupiedFLag: boolean;
+      do {
+        const params = [level.value, squareBorder.value, (level.value + 2 - z) * 0.5]
+        top = genRandomParticalPos(params[0], params[1], params[2]);
+        left = genRandomParticalPos(params[0], params[1], params[2]);
+        occupiedFLag = !!occupiedPos.find(item => item.top == top && item.left == left);
+      } while (occupiedFLag)
+      occupiedPos[i] = { top, left };
+      squareList.value.push(new square(id, z, top, left));
+      id += 1;
+    }
+  }
+}
+
+onMounted(() => {
+  if (stageRef.value) {
+    init(stageRef.value);
+  }
+});
 </script>
 
 <template>
-  <div class="page col">
-    <div class="action-bar row align-center justify-around"></div>
-    <div class="stage" ref="stageRef"></div>
+  <div class="page col align-center">
+    <div class="title bold text-center pointer w100" @click="nextLevel">{{level -1 }}</div>
+    <div class="stage-warpper col align-center justify-center">
+      <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
+        <div v-for="item of squareList" :key="item.id"
+          :style="`top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};`">
+          {{ item.id }}
+        </div>
+      </div>
+    </div>
     <div class="picked-bar" ref="pickedRef"></div>
+    <div class="action-bar row align-center justify-around"></div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.page{
+.page {
   width: 100vw;
   height: 100vh;
   position: relative;
-}
-.stage, .picked-bar, .action-bar{
-  width: 100%;
-  position: relative;
-  &>div{
-    position: absolute;
+
+  .title {
+    font-size: 20px;
+    letter-spacing: 2px;
+    line-height: 70px;
+    height: 70px;
+  }
+
+  .stage-warpper {
+    width: 100vw;
+    height: calc(100vh - 100px - 80px - 70px);
+    background: greenyellow;
   }
 }
-.action-bar{
+
+.stage,
+.picked-bar,
+.action-bar {
+  width: 100%;
+  position: relative;
+
+  &>div {
+    position: absolute;
+    background: red;
+    border: 1px solid white;
+    width: var(--size, 0);
+    height: var(--size, 0);
+    border-radius: 4px;
+    box-shadow: 0 4px 8px 0 rgb(0 0 0 / 10%),
+      0 6px 20px 0 rgb(0 0 0 / 5%);
+  }
+}
+
+.stage {
+  height: 100vw;
+}
+
+.action-bar {
+  height: 80px;
+  background: blueviolet;
+}
+
+.picked-bar {
+  background: salmon;
   height: 100px;
 }
 </style>
