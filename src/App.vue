@@ -143,13 +143,28 @@ const init = () => {
 }
 
 const handleSelectSquare = (idx: number) => {
-  if (squareList.value[idx].covered) { return; }
-  if (selectedLength == 8) { alert('fail') };
   const stageWarpper: Element = stageWarpperRef.value as unknown as Element;
   const stage: Element = stageRef.value as unknown as Element;
   const pickedBar: Element = pickedRef.value as unknown as Element;
   const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
-  console.log((pickedBar.clientHeight - pickedSquareBorder.value) / 2);
+  const orderPicked = () => {
+    const picked = squareList.value.filter(item => !item.deleted && item.selected);
+    picked.sort((a, b) => a.src < b.src ? -1 : 1)
+    for (let i = 0; i < picked.length; i++) {
+      picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
+    }
+  }
+  if (squareList.value[idx].selected && squareList.value[idx].top_pre && squareList.value[idx].left_pre) {
+    squareList.value[idx].top = squareList.value[idx].top_pre as number;
+    squareList.value[idx].left = squareList.value[idx].left_pre as number;
+    squareList.value[idx].selected = false;
+    selectedLength -= 1;
+    orderPicked();
+    checkCover();
+    return;
+  }
+  if (selectedLength == 8) { alert('fail') };
+
   const top: number = (stageWarpper.clientHeight - stage.clientHeight) / 2 + stage.clientHeight + (pickedBar.clientHeight - pickedSquareBorder.value) / 2 - 1;
   const left: number = selectedLength * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
   squareList.value[idx].selected = true;
@@ -166,11 +181,7 @@ const handleSelectSquare = (idx: number) => {
       samePicked[1].deleted = true;
       samePicked[2].deleted = true;
       selectedLength -= 3;
-      const picked = squareList.value.filter(item => !item.deleted && item.selected);
-      picked.sort((a, b) => a.src < b.src ? -1 : 1)
-      for (let i = 0; i < picked.length; i++) {
-        picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
-      }
+      orderPicked();
     }
     if (selectedLength == 8) { alert('fail') };
     const notDeleted = squareList.value.filter(item => !item.deleted);
