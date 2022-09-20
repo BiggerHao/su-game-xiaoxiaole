@@ -39,11 +39,37 @@ const stageSize: Size = {
 
 const squareList = ref<Array<InstanceType<typeof square>>>([]);
 const squareBorder = ref<number>(1);
-const level = ref<number>(2);
+const level = ref<number>(3);
 const nextLevel = () => {
-  if (level.value <= 8) {
+  if (level.value <= 7) {
     level.value += 1;
     init();
+  } else {
+    alert('All Passed!')
+  }
+}
+const checkCover = () => {
+  for (let i = 0; i < squareList.value.length; i++) {
+    for (let j = 0; j < squareList.value.length; j++) {
+      if (squareList.value[j].zIndex <= squareList.value[i].zIndex) { continue; }
+      console.log(111);
+      const x1 = squareList.value[i].left;
+      const x2 = x1 + squareBorder.value;
+      const y1 = squareList.value[i].top;
+      const y2 = y1 + squareBorder.value;
+      const points: Position[] = [
+        { top: squareList.value[j].top, left: squareList.value[j].left },
+        { top: squareList.value[j].top + squareBorder.value, left: squareList.value[j].left },
+        { top: squareList.value[j].top, left: squareList.value[j].left + squareBorder.value },
+        { top: squareList.value[j].top + squareBorder.value, left: squareList.value[j].left + squareBorder.value }
+      ];
+      for (const point of points) {
+        const isPointIn: Boolean = point.top < y2 && point.top > y1 && point.left > x1 && point.left < x2;
+        console.log(isPointIn);
+        if (isPointIn) { squareList.value[i].covered = true; console.log(i); break; }
+      }
+      if (squareList.value[i].covered) { break; }
+    }
   }
 }
 const init = (stage: Element = stageRef.value as unknown as Element) => {
@@ -51,7 +77,7 @@ const init = (stage: Element = stageRef.value as unknown as Element) => {
   stageSize.h = stage.clientHeight;
   squareBorder.value = Math.min(Math.floor(stageSize.w / (level.value + 2.5)), Math.floor(stageSize.h / (level.value + 2.5)));
   const genRandomParticalPos: (linesCount: number, itemLength: number, startOffsetLine?: number,) => number = (linesCount, itemLength, startOffsetLine = 1) => {
-    return (randomInt(0, Math.ceil(linesCount - startOffsetLine)) + startOffsetLine) * (itemLength + 2); // +2 (px) border
+    return (randomInt(0, Math.ceil(linesCount - startOffsetLine)) + startOffsetLine) * (itemLength + 3); // +2 (px) border
   }
 
   let id = 0;
@@ -74,6 +100,8 @@ const init = (stage: Element = stageRef.value as unknown as Element) => {
       id += 1;
     }
   }
+  checkCover();
+  console.log(squareList.value);
 }
 
 onMounted(() => {
@@ -85,11 +113,12 @@ onMounted(() => {
 
 <template>
   <div class="page col align-center">
-    <div class="title bold text-center pointer w100" @click="nextLevel">{{level -1 }}</div>
+    <div class="title bold text-center pointer w100" @click="nextLevel">{{level - 2 }}</div>
     <div class="stage-warpper col align-center justify-center">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
         <div v-for="item of squareList" :key="item.id"
-          :style="`top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};`">
+          :style="`top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};`"
+          :class="item.covered? 'covered':'pointer'">
           {{ item.id }}
         </div>
       </div>
@@ -124,10 +153,14 @@ onMounted(() => {
 .action-bar {
   width: 100%;
   position: relative;
+}
+
+.stage {
+  height: 100vw;
 
   &>div {
     position: absolute;
-    background: red;
+    background: white;
     border: 1px solid white;
     width: var(--size, 0);
     height: var(--size, 0);
@@ -135,10 +168,10 @@ onMounted(() => {
     box-shadow: 0 4px 8px 0 rgb(0 0 0 / 10%),
       0 6px 20px 0 rgb(0 0 0 / 5%);
   }
-}
 
-.stage {
-  height: 100vw;
+  .covered {
+    background: rgb(220, 220, 220) !important;
+  }
 }
 
 .action-bar {
