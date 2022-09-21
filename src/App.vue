@@ -67,7 +67,7 @@ console.log(new Date(), bgIdx);
 const bg = bgList[bgIdx];
 const srcPrefix = 'https://rescdn.sudaxmt.cn/g';
 const srcRowList: string[] = [
-  '/1.png',
+  // '/1.png',
   '/2.png',
   '/3.png',
   '/4.png',
@@ -75,7 +75,7 @@ const srcRowList: string[] = [
   '/6.png',
   '/7.png',
   // '/8.png',
-  '/9.png',
+  // '/9.png',
   '/a1.png',
   '/a2.png',
   '/a3.png',
@@ -199,7 +199,7 @@ const handleSelectSquare = (idx: number) => {
       picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
     }
   }
-  navigator.vibrate(10);
+  navigator?.vibrate(10);
   if (squareList.value[idx].selected && squareList.value[idx].top_pre && squareList.value[idx].left_pre) {
     squareList.value[idx].top = squareList.value[idx].top_pre as number;
     squareList.value[idx].left = squareList.value[idx].left_pre as number;
@@ -252,10 +252,10 @@ onMounted(() => {
     </div>
     <div class="stage-warpper col align-center justify-center" ref="stageWarpperRef">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
-        <div v-for="item of squareList" :key="item.id"
+        <button v-for="item of squareList" :key="item.id"
           :style="`${item.deleted?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
-          :class="item.covered? 'covered':''" @click.prevent="handleSelectSquare(item.id)">
-        </div>
+          :class="item.covered? 'covered':''" @click="handleSelectSquare(item.id)">
+        </button>
       </div>
     </div>
     <div ref="pickedWarpperRef" class="picked-bar-warpper row align-center justify-center">
@@ -263,11 +263,11 @@ onMounted(() => {
         <div class="picked-bar row align-center" ref="pickedRef"></div>
       </div>
     </div>
-    <!-- <div class="copyright row warp align-center justify-center">
+    <div class="copyright row warp align-center justify-center">
       <div>苏ICP备19066469号-1</div>
       <div>苏公网安备32050802011229号</div>
       <div>Copyright © 2022 陈昊</div>
-    </div> -->
+    </div>
   </div>
 </template>
 
@@ -332,7 +332,7 @@ onMounted(() => {
   width: 100%;
   position: relative;
 
-  &>div {
+  &>button {
     position: absolute;
     background: white;
     border: 1px solid white;
@@ -345,6 +345,7 @@ onMounted(() => {
     overflow: hidden;
     background-size: cover;
     background-position: center;
+    cursor: pointer;
   }
 
   .covered {
