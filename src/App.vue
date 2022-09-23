@@ -67,8 +67,8 @@ console.log(new Date(), bgIdx);
 const bg = bgList[bgIdx];
 const srcPrefix = 'https://rescdn.sudaxmt.cn/g';
 const srcRowList: string[] = [
-  // '/1.png',
-  '/2.png',
+  '/1.png',
+  // '/2.png',
   '/3.png',
   '/4.png',
   '/5.png',
@@ -187,7 +187,14 @@ const handleSelectSquare = (idx: number) => {
     init();
     return;
   }
-  if (squareList.value[idx].covered || selectedLength == 8) { return }
+  if (selectedLength >= 8) {
+    gameOver.value = true;
+    if ((typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
+      navigator?.vibrate(80);
+    }
+    return;
+  };
+  if (squareList.value[idx].covered) { return }
   const stageWarpper: Element = stageWarpperRef.value as unknown as Element;
   const stage: Element = stageRef.value as unknown as Element;
   const pickedBar: Element = pickedRef.value as unknown as Element;
@@ -199,7 +206,9 @@ const handleSelectSquare = (idx: number) => {
       picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
     }
   }
-  navigator?.vibrate(10);
+  if (level.value < 7 && (typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
+    navigator?.vibrate(5);
+  }
   if (squareList.value[idx].selected && squareList.value[idx].top_pre && squareList.value[idx].left_pre) {
     squareList.value[idx].top = squareList.value[idx].top_pre as number;
     squareList.value[idx].left = squareList.value[idx].left_pre as number;
@@ -218,8 +227,10 @@ const handleSelectSquare = (idx: number) => {
   squareList.value[idx].left = left;
   squareList.value[idx].top = top;
   selectedLength += 1;
+  const currentSrc = squareList.value[idx].src;
+  checkCover();
+
   setTimeout(() => {
-    const currentSrc = squareList.value[idx].src;
     const samePicked = squareList.value.filter(item => !item.deleted && item.selected && item.src === currentSrc);
     if (samePicked.length >= 3) {
       samePicked[0].deleted = true;
@@ -228,13 +239,11 @@ const handleSelectSquare = (idx: number) => {
       selectedLength -= 3;
       orderPicked();
     }
-    if (selectedLength == 8) { gameOver.value = true; };
     const notDeleted = squareList.value.filter(item => !item.deleted);
     if (!notDeleted || notDeleted.length === 0) {
       nextLevel();
     }
-    checkCover();
-  }, 420)
+  }, 600);
 }
 
 onMounted(() => {
@@ -247,15 +256,15 @@ onMounted(() => {
 
 <template>
   <div class="page col align-center" :style="bg">
-    <div class="title bold col align-center pointer w100">
+    <div class="title bold col align-center pointer w100" @click="nextLevel">
       第 {{level - 2 }} 关
     </div>
     <div class="stage-warpper col align-center justify-center" ref="stageWarpperRef">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
-        <button v-for="item of squareList" :key="item.id"
+        <div v-for="item of squareList" :key="item.id"
           :style="`${item.deleted?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
-          :class="item.covered? 'covered':''" @click="handleSelectSquare(item.id)">
-        </button>
+          :class="item.covered||gameOver? 'covered':''" @click="handleSelectSquare(item.id)">
+        </div>
       </div>
     </div>
     <div ref="pickedWarpperRef" class="picked-bar-warpper row align-center justify-center">
@@ -264,6 +273,7 @@ onMounted(() => {
       </div>
     </div>
     <div class="copyright row warp align-center justify-center">
+      <div>点击已选择的方块可以放回原位</div>
       <div>苏ICP备19066469号-1</div>
       <div>苏公网安备32050802011229号</div>
       <div>Copyright © 2022 陈昊</div>
@@ -332,7 +342,7 @@ onMounted(() => {
   width: 100%;
   position: relative;
 
-  &>button {
+  &>div {
     position: absolute;
     background: white;
     border: 1px solid white;
@@ -345,7 +355,6 @@ onMounted(() => {
     overflow: hidden;
     background-size: cover;
     background-position: center;
-    cursor: pointer;
   }
 
   .covered {
