@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { randomInt } from './utils/index.js';
-import { useStorage, StorageSerializers } from "@vueuse/core";
+import { useStorage, StorageSerializers, useDebounceFn } from "@vueuse/core";
 const stageRef = ref(null);
 const stageWarpperRef = ref(null);
 const pickedRef = ref(null);
@@ -15,7 +15,6 @@ class square {
   covered: boolean = false;
   selected: boolean = false;
   deleted: boolean = false;
-  hidden = false;
   src: string;
   top_pre?: number;
   left_pre?: number;
@@ -61,10 +60,30 @@ const pickedSquareBorder = ref<number>(1);
 const level = useStorage<number>("level", 3, localStorage, {
   serializer: StorageSerializers.object,
 });
+const score = useStorage<number>("score", 0, localStorage, {
+  serializer: StorageSerializers.object,
+});
+const levelCount = useStorage<number>("levelCount", 0, localStorage, {
+  serializer: StorageSerializers.object,
+});
+const passCount = useStorage<number>("passCount", 0, localStorage, {
+  serializer: StorageSerializers.object,
+});
 // const level = ref<number>(3);
 const selectedLength = useStorage<number>("selectedLength", 0, localStorage, {
   serializer: StorageSerializers.object,
 });
+const calcRefNum = (target: number | null | undefined, num: number, isPlus = true) => {
+  if (typeof target == 'number') {
+    if (isPlus) {
+      target += num;
+    } else {
+      target -= num;
+    }
+  } else {
+    target = 0;
+  }
+}
 const bgList = [
   "background-image: linear-gradient(45deg, #dd5e89, #f7bb97);",
   "background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);",
@@ -104,10 +123,17 @@ const srcRowList: string[] = [
 ];
 const nextLevel = () => {
   if (level.value <= 7) {
-    level.value += 1;
+    calcRefNum(levelCount.value, 1);
+    calcRefNum(level.value, 1);
     init();
   } else {
-    alert('All Passed!')
+    alert('All Passed!');
+    gameOver.value = false;
+    calcRefNum(passCount.value, 1);
+    squareList.value = [];
+    selectedLength.value = 0;
+    level.value = 3;
+    init();
   }
 }
 const checkCover = () => {
@@ -193,12 +219,47 @@ const init = () => {
   }
   checkCover();
 }
-
-const handleSelectSquare = (idx: number) => {
-  if (gameOver.value) {
-    level.value = 3;
-    init();
-    return;
+const orderPicked = () => {
+  const pickedBar: Element = pickedRef.value as unknown as Element;
+  const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
+  const picked = squareList.value.filter(item => !item.deleted && item.selected);
+  picked.sort((a, b) => a.src < b.src ? -1 : 1)
+  for (let i = 0; i < picked.length; i++) {
+    picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
+  }
+}
+const dlHiddensquare = useDebounceFn(() => {
+  const picked = squareList.value.filter(item => !item.deleted && item.selected);
+  interface CountItem {
+    c: number,
+    id: number[],
+    key: string
+  }
+  interface Count {
+    [key: string]: CountItem
+  }
+  const count: Count = {};
+  for (const pickedItem of picked) {
+    if (!count[pickedItem.src]) {
+      count[pickedItem.src] = {
+        c: 1,
+        id: [pickedItem.id],
+        key: pickedItem.src
+      };
+    } else {
+      count[pickedItem.src].c += 1;
+      count[pickedItem.src].id.push(pickedItem.id);
+    }
+  }
+  for (const item of Object.values(count)) {
+    if (item.c >= 3 && item.id.length >= 3) {
+      squareList.value[item.id[0]].deleted = true;
+      squareList.value[item.id[1]].deleted = true;
+      squareList.value[item.id[2]].deleted = true;
+      Reflect.deleteProperty(count, item.key);
+      calcRefNum(selectedLength.value, 3, false);
+      orderPicked();
+    }
   }
   if (selectedLength.value >= 8) {
     gameOver.value = true;
@@ -207,18 +268,19 @@ const handleSelectSquare = (idx: number) => {
     }
     return;
   };
+}, 600)
+
+const handleSelectSquare = (idx: number) => {
+  if (gameOver.value) {
+    level.value = 3;
+    init();
+    return;
+  }
   if (squareList.value[idx].covered) { return }
   const stageWarpper: Element = stageWarpperRef.value as unknown as Element;
   const stage: Element = stageRef.value as unknown as Element;
   const pickedBar: Element = pickedRef.value as unknown as Element;
   const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
-  const orderPicked = () => {
-    const picked = squareList.value.filter(item => !item.deleted && item.selected);
-    picked.sort((a, b) => a.src < b.src ? -1 : 1)
-    for (let i = 0; i < picked.length; i++) {
-      picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
-    }
-  }
   if (level.value < 7 && (typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
     navigator?.vibrate(5);
   }
@@ -226,7 +288,7 @@ const handleSelectSquare = (idx: number) => {
     squareList.value[idx].top = squareList.value[idx].top_pre as number;
     squareList.value[idx].left = squareList.value[idx].left_pre as number;
     squareList.value[idx].selected = false;
-    selectedLength.value -= 1;
+    calcRefNum(selectedLength.value, 1, false);
     orderPicked();
     checkCover();
     return;
@@ -239,35 +301,25 @@ const handleSelectSquare = (idx: number) => {
   squareList.value[idx].left_pre = squareList.value[idx].left;
   squareList.value[idx].left = left;
   squareList.value[idx].top = top;
-  selectedLength.value += 1;
-  const currentSrc = squareList.value[idx].src;
+  calcRefNum(selectedLength.value, 1);
   checkCover();
-  const samePicked = squareList.value.filter(item => !item.deleted && item.selected && item.src === currentSrc);
-  if (samePicked.length >= 3) {
-    samePicked[0].deleted = true;
-    samePicked[1].deleted = true;
-    samePicked[2].deleted = true;
-    selectedLength.value -= 3;
-    orderPicked();
-  }
   const notDeleted = squareList.value.filter(item => !item.deleted);
   if (!notDeleted || notDeleted.length === 0) {
     nextLevel();
   }
-  setTimeout(() => {
-    const neddHidden = squareList.value.filter(item => item.deleted && !item.hidden);
-    for (const item of neddHidden) { item.hidden = true; }
-  }, 600);
+  dlHiddensquare();
 }
 
 onMounted(() => {
-  if (!squareList?.value?.length) {
-    init();
-  }
-  const pickedBar: Element = pickedRef.value as unknown as Element;
-  const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
-  pickedSquareBorder.value = Math.floor((pickedBar.clientWidth - 10 * 7 - (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2) / 7);
-});
+  nextTick().then(() => {
+    if (!squareList?.value?.length) {
+      init();
+    }
+    const pickedBar: Element = pickedRef.value as unknown as Element;
+    const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
+    pickedSquareBorder.value = Math.floor((pickedBar.clientWidth - 10 * 7 - (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2) / 7);
+  });
+})
 </script>
 
 <template>
@@ -278,7 +330,7 @@ onMounted(() => {
     <div class="stage-warpper col align-center justify-center" ref="stageWarpperRef">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
         <div v-for="item of squareList" :key="item.id"
-          :style="`${item.hidden?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
+          :style="`${item.deleted?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
           :class="item.covered||gameOver? 'covered':''" @click="handleSelectSquare(item.id)">
         </div>
       </div>
@@ -286,6 +338,11 @@ onMounted(() => {
     <div ref="pickedWarpperRef" class="picked-bar-warpper row align-center justify-center">
       <div class="picked-bar-border row align-center justify-center" :class="gameOver?'failed':''">
         <div class="picked-bar row align-center" ref="pickedRef"></div>
+        <div class="point w100">
+          <span>得分：{{score}} </span>
+          <span>过关：{{levelCount}} </span>
+          <span>通关：{{passCount}}</span>
+        </div>
       </div>
     </div>
     <div class="copyright row warp align-center justify-center">
@@ -344,7 +401,21 @@ onMounted(() => {
       height: 80%;
       background: rgba(241, 241, 241, 0.35);
       border: 1px solid rgba(241, 241, 241, 0.8);
+      position: relative;
+
+      .point {
+        position: absolute;
+        font-size: 13px;
+        top: -2em;
+        text-align: right;
+        padding-right: 1em;
+
+        span {
+          margin-left: 15px;
+        }
+      }
     }
+
 
     .picked-bar {
       height: 80px;
