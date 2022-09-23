@@ -1,35 +1,36 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { randomInt } from './utils/index.js';
-
+import { useStorage, StorageSerializers } from "@vueuse/core";
 const stageRef = ref(null);
 const stageWarpperRef = ref(null);
 const pickedRef = ref(null);
 const pickedWarpperRef = ref(null);
 
 class square {
-  private _id: number;
+  id: number;
   top: number;
   left: number;
   zIndex: number;
   covered: boolean = false;
   selected: boolean = false;
   deleted: boolean = false;
+  hidden = false;
   src: string;
   top_pre?: number;
   left_pre?: number;
 
   constructor(id: number, zIndex: number, top: number, left: number, src: string) {
     this.zIndex = zIndex;
-    this._id = id;
+    this.id = id;
     this.top = top;
     this.left = left;
     this.src = src;
   }
 
-  get id() {
-    return this._id;
-  }
+  // get id() {
+  //   return this._id;
+  // }
 }
 
 interface Size {
@@ -45,11 +46,25 @@ const stageSize: Size = {
   w: -1,
   h: -1
 }
-
-const squareList = ref<Array<InstanceType<typeof square>>>([]);
-const squareBorder = ref<number>(1);
+const squareList = useStorage<Array<InstanceType<typeof square>>>("squareList", [], localStorage, {
+  serializer: StorageSerializers.object,
+});
+// const squareList = ref<Array<InstanceType<typeof square>>>([]);
+const squareBorder = useStorage<number>("squareBorder", 1, localStorage, {
+  serializer: StorageSerializers.object,
+});
+// const squareBorder = ref<number>(1);
+// const pickedSquareBorder = useStorage<number>("pickedSquareBorder", 1, localStorage, {
+//   serializer: StorageSerializers.object,
+// });
 const pickedSquareBorder = ref<number>(1);
-const level = ref<number>(3);
+const level = useStorage<number>("level", 3, localStorage, {
+  serializer: StorageSerializers.object,
+});
+// const level = ref<number>(3);
+const selectedLength = useStorage<number>("selectedLength", 0, localStorage, {
+  serializer: StorageSerializers.object,
+});
 const bgList = [
   "background-image: linear-gradient(45deg, #dd5e89, #f7bb97);",
   "background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);",
@@ -63,7 +78,6 @@ const bgList = [
   "background-image: url('https://rescdn.sudaxmt.cn/img/bg_colorful/l4.png');",
 ]
 const bgIdx = randomInt(0, bgList.length - 1);
-console.log(new Date(), bgIdx);
 const bg = bgList[bgIdx];
 const srcPrefix = 'https://rescdn.sudaxmt.cn/g';
 const srcRowList: string[] = [
@@ -121,12 +135,11 @@ const checkCover = () => {
     }
   }
 }
-let selectedLength = 0;
 let gameOver = ref(false);
 const init = () => {
   gameOver.value = false;
   squareList.value = [];
-  selectedLength = 0;
+  selectedLength.value = 0;
   const stage: Element = stageRef.value as unknown as Element;
   stageSize.w = stage.clientWidth;
   stageSize.h = stage.clientHeight;
@@ -187,7 +200,7 @@ const handleSelectSquare = (idx: number) => {
     init();
     return;
   }
-  if (selectedLength >= 8) {
+  if (selectedLength.value >= 8) {
     gameOver.value = true;
     if ((typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
       navigator?.vibrate(80);
@@ -213,41 +226,44 @@ const handleSelectSquare = (idx: number) => {
     squareList.value[idx].top = squareList.value[idx].top_pre as number;
     squareList.value[idx].left = squareList.value[idx].left_pre as number;
     squareList.value[idx].selected = false;
-    selectedLength -= 1;
+    selectedLength.value -= 1;
     orderPicked();
     checkCover();
     return;
   }
 
   const top: number = (stageWarpper.clientHeight - stage.clientHeight) / 2 + stage.clientHeight + (pickedBar.clientHeight - pickedSquareBorder.value) / 2 - 1;
-  const left: number = selectedLength * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
+  const left: number = selectedLength.value * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
   squareList.value[idx].selected = true;
   squareList.value[idx].top_pre = squareList.value[idx].top;
   squareList.value[idx].left_pre = squareList.value[idx].left;
   squareList.value[idx].left = left;
   squareList.value[idx].top = top;
-  selectedLength += 1;
+  selectedLength.value += 1;
   const currentSrc = squareList.value[idx].src;
   checkCover();
-
+  const samePicked = squareList.value.filter(item => !item.deleted && item.selected && item.src === currentSrc);
+  if (samePicked.length >= 3) {
+    samePicked[0].deleted = true;
+    samePicked[1].deleted = true;
+    samePicked[2].deleted = true;
+    selectedLength.value -= 3;
+    orderPicked();
+  }
+  const notDeleted = squareList.value.filter(item => !item.deleted);
+  if (!notDeleted || notDeleted.length === 0) {
+    nextLevel();
+  }
   setTimeout(() => {
-    const samePicked = squareList.value.filter(item => !item.deleted && item.selected && item.src === currentSrc);
-    if (samePicked.length >= 3) {
-      samePicked[0].deleted = true;
-      samePicked[1].deleted = true;
-      samePicked[2].deleted = true;
-      selectedLength -= 3;
-      orderPicked();
-    }
-    const notDeleted = squareList.value.filter(item => !item.deleted);
-    if (!notDeleted || notDeleted.length === 0) {
-      nextLevel();
-    }
+    const neddHidden = squareList.value.filter(item => item.deleted && !item.hidden);
+    for (const item of neddHidden) { item.hidden = true; }
   }, 600);
 }
 
 onMounted(() => {
-  init();
+  if (!squareList?.value?.length) {
+    init();
+  }
   const pickedBar: Element = pickedRef.value as unknown as Element;
   const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
   pickedSquareBorder.value = Math.floor((pickedBar.clientWidth - 10 * 7 - (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2) / 7);
@@ -262,7 +278,7 @@ onMounted(() => {
     <div class="stage-warpper col align-center justify-center" ref="stageWarpperRef">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
         <div v-for="item of squareList" :key="item.id"
-          :style="`${item.deleted?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
+          :style="`${item.hidden?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
           :class="item.covered||gameOver? 'covered':''" @click="handleSelectSquare(item.id)">
         </div>
       </div>
