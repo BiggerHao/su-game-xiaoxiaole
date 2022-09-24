@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import { randomInt } from './utils/index.js';
-import { useStorage, StorageSerializers, useDebounceFn } from "@vueuse/core";
+import { useStorage, StorageSerializers, useDebounceFn, RemovableRef } from "@vueuse/core";
 const stageRef = ref(null);
 const stageWarpperRef = ref(null);
 const pickedRef = ref(null);
@@ -73,15 +73,13 @@ const passCount = useStorage<number>("passCount", 0, localStorage, {
 const selectedLength = useStorage<number>("selectedLength", 0, localStorage, {
   serializer: StorageSerializers.object,
 });
-const calcRefNum = (target: number | null | undefined, num: number, isPlus = true) => {
-  if (typeof target == 'number') {
-    if (isPlus) {
-      target += num;
-    } else {
-      target -= num;
-    }
+const calcRefNum = (target: RemovableRef<number>, num: number, isPlus = true) => {
+  console.log(target.value, typeof target == 'number')
+  if (typeof target.value == 'number') {
+    if (isPlus) { target.value += num; }
+    else { target.value -= num; }
   } else {
-    target = 0;
+    target.value = 0;
   }
 }
 const bgList = [
@@ -123,13 +121,13 @@ const srcRowList: string[] = [
 ];
 const nextLevel = () => {
   if (level.value <= 7) {
-    calcRefNum(levelCount.value, 1);
-    calcRefNum(level.value, 1);
+    calcRefNum(levelCount, 1);
+    calcRefNum(level, 1);
     init();
   } else {
-    alert('All Passed!');
+    alert('通关啦！');
     gameOver.value = false;
-    calcRefNum(passCount.value, 1);
+    calcRefNum(passCount, 1);
     squareList.value = [];
     selectedLength.value = 0;
     level.value = 3;
@@ -228,7 +226,36 @@ const orderPicked = () => {
     picked[i].left = i * (pickedSquareBorder.value + 10) + (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2;
   }
 }
+const revert = (idx: number) => {
+  if (selectedLength.value == 8) {
+    return
+  }
+  squareList.value[idx].top = squareList.value[idx].top_pre as number;
+  squareList.value[idx].left = squareList.value[idx].left_pre as number;
+  squareList.value[idx].selected = false;
+  calcRefNum(selectedLength, 1, false);
+  orderPicked();
+  checkCover();
+}
+const handleGameOver = () => {
+  gameOver.value = true;
+  if ((typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
+    navigator?.vibrate(80);
+  }
+  const picked = squareList.value.filter(item => !item.deleted && item.selected);
+  console.log(picked)
+  for (let i = picked.length - 1; i > 7; i--) {
+    console.log(picked[i])
+    revert(picked[i].id);
+  }
+}
+let isWaitting = false;
 const dlHiddensquare = useDebounceFn(() => {
+  isWaitting = false;
+  if (selectedLength.value >= 10) {
+    handleGameOver();
+    return;
+  };
   const picked = squareList.value.filter(item => !item.deleted && item.selected);
   interface CountItem {
     c: number,
@@ -257,17 +284,19 @@ const dlHiddensquare = useDebounceFn(() => {
       squareList.value[item.id[1]].deleted = true;
       squareList.value[item.id[2]].deleted = true;
       Reflect.deleteProperty(count, item.key);
-      calcRefNum(selectedLength.value, 3, false);
+      calcRefNum(selectedLength, 3, false);
+      calcRefNum(score, 1);
       orderPicked();
     }
   }
   if (selectedLength.value >= 8) {
-    gameOver.value = true;
-    if ((typeof navigator?.vibrate).toLocaleLowerCase() === 'function') {
-      navigator?.vibrate(80);
-    }
+    handleGameOver();
     return;
   };
+  const notDeleted = squareList.value.filter(item => !item.deleted);
+  if (!notDeleted || notDeleted.length === 0) {
+    nextLevel();
+  }
 }, 600)
 
 const handleSelectSquare = (idx: number) => {
@@ -277,6 +306,7 @@ const handleSelectSquare = (idx: number) => {
     return;
   }
   if (squareList.value[idx].covered) { return }
+  if (isWaitting && selectedLength.value > 7) { return; }
   const stageWarpper: Element = stageWarpperRef.value as unknown as Element;
   const stage: Element = stageRef.value as unknown as Element;
   const pickedBar: Element = pickedRef.value as unknown as Element;
@@ -285,12 +315,7 @@ const handleSelectSquare = (idx: number) => {
     navigator?.vibrate(5);
   }
   if (squareList.value[idx].selected && squareList.value[idx].top_pre && squareList.value[idx].left_pre) {
-    squareList.value[idx].top = squareList.value[idx].top_pre as number;
-    squareList.value[idx].left = squareList.value[idx].left_pre as number;
-    squareList.value[idx].selected = false;
-    calcRefNum(selectedLength.value, 1, false);
-    orderPicked();
-    checkCover();
+    revert(idx);
     return;
   }
 
@@ -301,12 +326,10 @@ const handleSelectSquare = (idx: number) => {
   squareList.value[idx].left_pre = squareList.value[idx].left;
   squareList.value[idx].left = left;
   squareList.value[idx].top = top;
-  calcRefNum(selectedLength.value, 1);
+  calcRefNum(selectedLength, 1);
   checkCover();
-  const notDeleted = squareList.value.filter(item => !item.deleted);
-  if (!notDeleted || notDeleted.length === 0) {
-    nextLevel();
-  }
+  isWaitting = true;
+  orderPicked();
   dlHiddensquare();
 }
 
@@ -314,24 +337,33 @@ onMounted(() => {
   nextTick().then(() => {
     if (!squareList?.value?.length) {
       init();
+    } else {
+      const notDeleted = squareList.value.filter(item => !item.deleted);
+      if (!notDeleted || notDeleted.length === 0) {
+        nextLevel();
+      }
     }
     const pickedBar: Element = pickedRef.value as unknown as Element;
     const pickeWarpper: Element = pickedWarpperRef.value as unknown as Element;
     pickedSquareBorder.value = Math.floor((pickedBar.clientWidth - 10 * 7 - (pickeWarpper.clientWidth - pickedBar.clientWidth) / 2) / 7);
   });
+  setInterval(() => {
+    alert("您已连续游戏10分钟\n抬头休息一下吧~\n游戏进度实时保存")
+  }, 1000 * 60 * 10)
 })
 </script>
 
 <template>
   <div class="page col align-center" :style="bg">
-    <div class="title bold col align-center pointer w100" @click="nextLevel">
+    <div class="title bold col align-center pointer w100">
       第 {{level - 2 }} 关
     </div>
     <div class="stage-warpper col align-center justify-center" ref="stageWarpperRef">
       <div class="stage" ref="stageRef" :style="{'--size':squareBorder+'px'}">
-        <div v-for="item of squareList" :key="item.id"
-          :style="`${item.deleted?'display:none;':`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`}`"
-          :class="item.covered||gameOver? 'covered':''" @click="handleSelectSquare(item.id)">
+        <div v-for="item of squareList" :key="item.id" class="animate__animated"
+          :style="`background-image: url(${srcPrefix}${item.src});top:${item.top}px;left:${item.left}px;z-index:${item.zIndex};${item.selected?`width:${pickedSquareBorder}px;height:${pickedSquareBorder}px;`:''}`"
+          :class="(item.covered||gameOver? 'covered ':'') + (item.deleted? 'animate__flipOutY ':'')"
+          @click="handleSelectSquare(item.id)">
         </div>
       </div>
     </div>
